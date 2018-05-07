@@ -16,9 +16,6 @@ output = image.copy()
 image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 image = cv2.GaussianBlur(image,(3,3),0)
 
-#edged = cv2.Canny(image, 25, 30)
-#cv2.imshow("output",  edged )
-#cv2.waitKey(0)
 
 #image = edged
 
@@ -71,3 +68,28 @@ if args['save'] != None:
 	cv2.imwrite(args['save'], np.hstack([image, output]) )
 cv2.waitKey(0)
 
+
+# Isola a borracha na foto
+# poderia ser feito uma mascara de tamanho fixo, mas fiz essa baseada no tamanho
+# do circulo detectado pois estou fazendo testes em imagens de tamanhos diferentes
+
+externo = circles1[0]
+borracha_ferro = circles2[0]
+
+rachaduras = image.copy()
+for x in range( image.shape[1] ):
+	for y in range( image.shape[0] ):
+
+		dist = np.sqrt( (x - externo[0])**2 + (y - externo[1])**2 )
+		if not(( dist >= borracha_ferro[2] ) & ( dist <= externo[2] )):
+			rachaduras[y,x] = 0
+
+cv2.imshow("output",  rachaduras )
+cv2.waitKey(0)
+
+# TO DO: Fazer canny line detection na parte da borracha.
+
+
+edged = cv2.Canny(rachaduras, 25, 30)
+cv2.imshow("output",  edged )
+cv2.waitKey(0)
