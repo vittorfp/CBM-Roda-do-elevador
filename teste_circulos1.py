@@ -1,3 +1,5 @@
+# Teste com a roda nova
+
 import numpy as np
 import argparse
 import imutils
@@ -5,9 +7,9 @@ import cv2
 
 ap = argparse.ArgumentParser()
 ap.add_argument("-s", "--save", help = "Image to save")
-args = vars( ap.parse_args() )
+args = vars(ap.parse_args())
 
-image = cv2.imread('img/img5.jpg')[000:1100,:,:]
+image = cv2.imread('img/img3.jpg')[300:1100,:,:]
 
 image = imutils.resize(image, width = int(image.shape[1] * 0.8))
 output = image.copy()
@@ -20,15 +22,15 @@ image = cv2.GaussianBlur(image,(3,3),0)
 #image = edged
 
 # detecta o circulo interno da roda
-circles = cv2.HoughCircles(image, cv2.HOUGH_GRADIENT, 3 ,700, maxRadius = 250, minRadius = 150)
+circles = cv2.HoughCircles(image, cv2.HOUGH_GRADIENT, 1 ,400, maxRadius = 320)
 
 # detecta o circulo externo
-circles1 = cv2.HoughCircles(image, cv2.HOUGH_GRADIENT, 3 , 600, maxRadius = 350, minRadius = 250)
+circles1 = cv2.HoughCircles(image, cv2.HOUGH_GRADIENT, 1.4 , 400, maxRadius = 320, minRadius = 305)
 #circles1 = None
 
 # detecta a interface entre a borracha e o ferro
-#circles2 = cv2.HoughCircles(image, cv2.HOUGH_GRADIENT, 1.4 , 700, maxRadius = 310, minRadius = 270)
-circles2 = None
+circles2 = cv2.HoughCircles(image, cv2.HOUGH_GRADIENT, 1.4 , 700, maxRadius = 310, minRadius = 270)
+#circles2 = None
 
 if circles is not None:
 	print(circles[0])
@@ -65,9 +67,8 @@ if circles2 is not None:
 
 cv2.imshow("output",  output )
 if args['save'] != None:
-	cv2.imwrite(args['save'], np.hstack([image, output]) )
+	cv2.imwrite(args['save'], np.hstack( [image, output] ) )
 cv2.waitKey(0)
-
 
 
 # Isola a borracha na foto
@@ -75,7 +76,7 @@ cv2.waitKey(0)
 # do circulo detectado pois estou fazendo testes em imagens de tamanhos diferentes
 
 externo = circles1[0]
-borracha_ferro = circles[0]
+borracha_ferro = circles2[0]
 
 rachaduras = image.copy()
 for x in range( image.shape[1] ):
@@ -88,9 +89,7 @@ for x in range( image.shape[1] ):
 cv2.imshow("output",  rachaduras )
 cv2.waitKey(0)
 
-cv2.imwrite('img/borracha1.jpg', rachaduras )
-
 # TO DO: Fazer canny line detection na parte da borracha.
-edged = cv2.Canny(rachaduras, 30, 40)
+edged = cv2.Canny(rachaduras, 25, 30)
 cv2.imshow("output",  edged )
 cv2.waitKey(0)
