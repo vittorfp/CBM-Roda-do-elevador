@@ -76,7 +76,7 @@ cv2.waitKey(0)
 
 externo = circles1[0]
 borracha_ferro = circles[0]
-
+soma = 0
 rachaduras = image.copy()
 for x in range( image.shape[1] ):
 	for y in range( image.shape[0] ):
@@ -84,7 +84,11 @@ for x in range( image.shape[1] ):
 		dist = np.sqrt( (x - externo[0])**2 + (y - externo[1])**2 )
 		if not(( dist >= borracha_ferro[2] ) & ( dist <= externo[2] )):
 			rachaduras[y,x] = 0
+		else:
+			soma += 1
 
+
+print(soma)
 cv2.imshow("output",  rachaduras )
 cv2.waitKey(0)
 

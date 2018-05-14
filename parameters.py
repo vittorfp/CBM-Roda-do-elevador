@@ -102,7 +102,7 @@ while(not ok):
 		print(refPt)
 		inicio = refPt[0]
 		fim = refPt[1]
-		img = img[inicio[1]:fim[1],inicio[0]:fim[0],:]
+		img = img[inicio[1]:fim[1],inicio[0]:fim[0]]
 		cv2.destroyAllWindows()
 		crop = refPt
 		refPt = []
@@ -128,7 +128,8 @@ cv2.createTrackbar(switch, 'image', 0 , 1 , save)
 while(1):
 	
 	output = img.copy()
-	image = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)	
+	#image = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+	image = img.copy()
 	
 	
 	k = cv2.waitKey(1) & 0xFF
@@ -143,7 +144,7 @@ while(1):
 	ce_max = cv2.getTrackbarPos('Circulo Externo (raio maximo)','image')
 	ce_sens= cv2.getTrackbarPos('Circulo Externo (sensibilidade)','image')
 	#print (ci_min,ci_max,ci_sens,ce_min,ce_max,ce_sens)
-
+	image = cv2.GaussianBlur(image,(3,3),0)
 	try:
 		# detecta o circulo interno da roda
 		circles = cv2.HoughCircles(image, cv2.HOUGH_GRADIENT, ci_sens ,800, maxRadius = ci_max, minRadius = ci_min)
