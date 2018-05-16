@@ -18,7 +18,7 @@ try:
 		print("Imagem capturada")
 except:
 	print("Falha na comunicacao com a camera")
-	img = cv2.imread('img/img4.jpg')
+	img = cv2.imread('img/roda-real.bmp')
 	#exit(1)
 
 
@@ -89,6 +89,20 @@ def save(x):
 
 		fh.close()
 
+img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+equ = cv2.equalizeHist(img)
+cv2.imshow('image',equ)
+cv2.imshow('imadfge',img)
+cv2.waitKey(0)
+
+th3 = cv2.adaptiveThreshold(img,255,cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY,5,2)
+cv2.imshow('image',th3)
+cv2.waitKey(0)
+
+th3 = cv2.adaptiveThreshold(equ,255,cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY,11,2)
+cv2.imshow('image',th3)
+cv2.waitKey(0)
+
 
 cv2.namedWindow('image')
 cv2.setMouseCallback("image", click_and_crop)
@@ -103,6 +117,7 @@ while(not ok):
 		inicio = refPt[0]
 		fim = refPt[1]
 		img = img[inicio[1]:fim[1],inicio[0]:fim[0]]
+		#cv2.imwrite('img/template_roda.jpg', img )
 		cv2.destroyAllWindows()
 		crop = refPt
 		refPt = []
