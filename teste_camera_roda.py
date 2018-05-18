@@ -28,7 +28,7 @@ def template_match(img,template):
 
 		resized = imutils.resize(img, width = int(img.shape[1] * scale))
 		r = img.shape[1] / float(resized.shape[1])
- 		
+		
 		if resized.shape[0] < tH or resized.shape[1] < tW:
 			break
 
@@ -37,11 +37,11 @@ def template_match(img,template):
 	
 		result = cv2.matchTemplate(resized, template, cv2.TM_CCOEFF)
 		(_, maxVal, _, maxLoc) = cv2.minMaxLoc(result)
- 		
+		
 		if found is None or maxVal > found[0]:
 			found = (maxVal, maxLoc, r)
- 	
- 	return found
+	
+	return found
 
 
 
@@ -57,6 +57,14 @@ def plot_circles(circles, output):
 			cv2.circle(output, (x, y), r, (0, 255, 0), 4)
 			cv2.rectangle(output, (x - 5, y - 5), (x + 5, y + 5), (0, 128, 255), -1)
 
+def log_transform(img):
+	# resizing using aspect ratio intact and finding the circle
+	# reduce size retain aspect ratio intact
+	# invert BGR 2 RGB
+	#  convert in to float and get log trasform for contrast streching
+	g = 0.2 * (np.log(1 + np.float32(img)))
+	# change into uint8
+	cvuint = cv2.convertScaleAbs(g)
 
 def proc_image(image):
 
@@ -81,13 +89,14 @@ def proc_image(image):
 	print(maxVal)
 	if( maxVal < 51553404*2 ):
 		return output
-	cv2.imwrite('img/rodas/Roda '+time.ctime()+'.jpg',image)
+	#cv2.imwrite('img/rodas/Roda '+time.ctime()+'.jpg',image)
 	print("Roda")
 
 
 	#image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+	image = log_transform(image)
 	image_c = cv2.GaussianBlur(image,(3,3),0)
-
+	
 
 	#image = edged
 
@@ -108,11 +117,11 @@ def proc_image(image):
 	#cv2.destroyAllWindows()
 
 
-
 	# Isola a borracha na foto
 	# poderia ser feito uma mascara de tamanho fixo, mas fiz essa baseada no tamanho
 	# do circulo detectado pois estou fazendo testes em imagens de tamanhos diferentes
 	total = 0
+
 	if (circles1 is not None) and (circles2 is not None):
 
 		borracha_ferro = circles1[0,0]
@@ -120,10 +129,11 @@ def proc_image(image):
 		print(externo)
 		print(borracha_ferro)
 		rachaduras = image.copy()
+		#dist = np.sqrt( (x - externo[0])**2 + (y - externo[1])**2 )
 		for x in range( image.shape[1] ):
 			for y in range( image.shape[0] ):
 
-				dist = np.sqrt( (x - externo[0])**2 + (y - externo[1])**2 )
+				dist = np.sqrt( (x - externo[0]) ** 2 + (y - externo[1]) ** 2 )
 				if not(( dist >= borracha_ferro[2] ) & ( dist <= externo[2] )):
 					rachaduras[y,x] = 0
 				else:
@@ -161,9 +171,14 @@ try:
 	cam.open()
 	for img in cam.grab_images(1):
 		print("Imagem capturada")
+		rachaduras = img.copy()
+		for x in range( img.shape[1] ):
+			for y in range( img.shape[0] ):
+				rachaduras[y,x] = (y,x)
+		
 except:
 	print("Falha na comunicacao com a camera")
-	exit(1)
+	#exit(1)
 	de = cv2.imread('img/roda-real.bmp')
 
 template = cv2.imread('img/template_roda.jpg')
@@ -172,15 +187,18 @@ template = cv2.cvtColor(template, cv2.COLOR_BGR2GRAY)
 
 
 while True:
-	for image in cam.grab_images(1):
-		#print(image.shape)
-		result = proc_image(image)
-		try:
-			cv2.imshow('frame',result)
-			if cv2.waitKey(1) & 0xFF == ord('q'):
+	if(de is None):
+		for image in cam.grab_images(1):
+			#print(image.shape)
+			result = proc_image(image)
+			try:
+				cv2.imshow('frame',result)
+				if cv2.waitKey(1) & 0xFF == ord('q'):
+					break
+			except:
+				cv2.destroyAllWindows()
 				break
-		except:
-			cv2.destroyAllWindows()
-			break
+	else:
+		print("Deu")
 
 cv2.destroyAllWindows()
