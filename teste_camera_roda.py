@@ -24,23 +24,46 @@ class MyWindow(QtGui.QMainWindow, interface.Ui_MainWindow):
 
 
 	def display_image(self,image, container):
+		
+		image = imutils.resize(image, width = int(image.shape[1] * 0.8))
+		height, width = image.shape	
+		image = QtGui.QImage(image.tobytes(), width, height,(width),QtGui.QImage.Format_Indexed8)
+		
+		pixmap = QPixmap.fromImage(image)
+		
+		scene = QtGui.QGraphicsScene() 
+		scene.addPixmap(pixmap)
+
+		
+		if container == 0:
+			self.foto_inicial.setScene(scene)
+		elif container == 1:
+			self.foto_atual.setScene(scene)
+		elif container == 2:
+			self.crop_borr.setScene(scene)
+		elif container == 3:
+			self.rachaduras.setScene(scene)
+		#scene.update()
+
+		#self.label_3.show()
+		'''
 		global inicio_x, inicio_y, fim_x, fim_y
 		r = QRect.rect(inicio_x, inicio_y, fim_x, fim_y);
 	
 		height, width = image.shape	
 		byteValue =  1 * width
-		#img_inicial = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+		img_inicial = cv2.cvtColor(img_inicial, cv2.COLOR_BGR2GRAY)
 		scene = QtGui.QGraphicsScene() 
 		image = QtGui.QImage(image, height, width,  QtGui.QImage.Format_RGB888)
-		scene.addPixmap(QtGui.QPixmap.fromImage(image).copy(inicio_x, inicio_y, fim_x, fim_y) )
+		scene.addPixmap(QtGui.QPixmap.fromImage(image) )
 
 		self.foto_inicial.setScene(scene)
 		#self.foto_inicial.show()
 		if container == 0:
 			pass
 		scene.update()
-		return
-
+		#return
+		'''
 
 	def update_percent(self,percentual):
 		self.progressBar.setProperty("value", percentual)
@@ -110,7 +133,7 @@ def proc_image(image):
 
 	global d,inicio_x, inicio_y, fim_x, fim_y, ci_min,ci_max,ci_sens,ce_min,ce_max,ce_sens, templatem, tH, tW , window
 
-	#image = imutils.resize(image, width = int(image.shape[1] * 0.8))
+	#imagSe = imutils.resize(image, width = int(image.shape[1] * 0.8))
 	image = image[inicio_y:fim_y,inicio_x:fim_x]
 	
 	a = template_match(image,template)
@@ -119,9 +142,9 @@ def proc_image(image):
 	else:
 		(maxVal, maxLoc, r) = a
 
+	window.display_image(image,1)
 	image = log_transform(image,0.5)
 	output = image.copy()
-	
 	# define o limiar de deteccao da roda
 	print(maxVal)
 	if( maxVal < 51553404*2 ):
@@ -133,7 +156,7 @@ def proc_image(image):
 
 	#output = cv2.equalizeHist(image)
 	#image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-	print(image)
+	#print(image)
 	image_c = cv2.GaussianBlur(image,(3,3),0)
 
 	# detecta o circulo externo
@@ -144,8 +167,6 @@ def proc_image(image):
 	
 	plot_circles(circles1,output)
 	plot_circles(circles2,output)
-
-	
 
 	# Isola a borracha na foto
 	# poderia ser feito uma mascara de tamanho fixo, mas fiz essa baseada no tamanho
@@ -165,14 +186,17 @@ def proc_image(image):
 
 		rachaduras[zera] = 0
 
-		cv2.imshow("Crop",  rachaduras )
-		cv2.waitKey(1)
-		
+		#cv2.imshow("Crop",  rachaduras )
+		#cv2.waitKey(1)
+		#window.display_image(rachaduras,0)
+		window.display_image(rachaduras,2)
+
 		# TO DO: Fazer canny line detection na parte da borracha.
 		edged = cv2.Canny(rachaduras, 25, 30)
 
-		cv2.imshow("Linhas",  edged )
-		cv2.waitKey(1)
+		#cv2.imshow("Linhas",  edged )
+		#cv2.waitKey(1)
+		window.display_image(edged,3)
 		
 		brancos = (np.sum(edged)/255).astype(float)
 		total = ( image.shape[0] * image.shape[1] ) - np.sum(zera)
@@ -200,26 +224,27 @@ except:
 	print("Falha ao carregar interface grafica")
 
 # Carrega parametros e arquivos auxiliares
-try:
-	#Parametros
-	(inicio_x, inicio_y, fim_x, fim_y, ci_min,ci_max,ci_sens,ce_min,ce_max,ce_sens) = getParams()
-	
-	# matriz auxiliar
-	d = init_matrix()
+#try:
+#Parametros
+(inicio_x, inicio_y, fim_x, fim_y, ci_min,ci_max,ci_sens,ce_min,ce_max,ce_sens) = getParams()
 
-	# Template
-	template = cv2.imread('img/template_roda.jpg')
-	template = cv2.cvtColor(template, cv2.COLOR_BGR2GRAY)
-	(tH, tW) = template.shape[:2]
+# matriz auxiliar
+d = init_matrix()
 
-	# Imagem inicial
-	img_inicial = cv2.imread('img/roda-real.bmp')
-	#img_inicial = img_inicial[inicio_y:fim_y,inicio_x:fim_x]
-	#img_inicial = cv2.cvtColor(img_inicial, cv2.COLOR_BGR2GRAY)
-	window.display_image(img_inicial,0)
+# Template
+template = cv2.imread('img/template_roda.jpg')
+template = cv2.cvtColor(template, cv2.COLOR_BGR2GRAY)
+(tH, tW) = template.shape[:2]
 
-except:
-	print('Falha ao carregar template')
+# Imagem inicial
+img_inicial = cv2.imread('img/roda-real.bmp')
+img_inicial = img_inicial[inicio_y:fim_y,inicio_x:fim_x]
+img_inicial = cv2.cvtColor(img_inicial, cv2.COLOR_BGR2GRAY)
+print(img_inicial.shape)
+window.display_image(img_inicial,0)
+
+#except:
+#	print('Falha ao carregar template')
 
 
 # Inicializacao da camera
@@ -253,12 +278,12 @@ else:
 
 	result = proc_image(imagem_exemplo)
 	try:
-		cv2.imshow('frame',result)
-		cv2.waitKey(0)
+		#cv2.imshow('frame',result)
+		#cv2.waitKey(0)
 		cv2.destroyAllWindows()
 	except:
 		cv2.destroyAllWindows()
 
 
 sys.exit(app.exec_())
-window.display_image(img_inicial,0)
+#window.display_image(img_inicial,0)
