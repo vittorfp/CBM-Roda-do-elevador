@@ -4,9 +4,10 @@ import time
 import sys
 import cv2
 import numpy as np
+import paho.mqtt.client as mqtt
 import interface
-from PyQt4 import QtGui, uic
 
+from PyQt4 import QtGui, uic
 from PyQt4.QtCore import *
 from PyQt4.QtGui import *
 
@@ -21,53 +22,82 @@ class MyWindow(QtGui.QMainWindow, interface.Ui_MainWindow):
 		
 		self.setupUi(self)
 		#self.show()
+		self.timer = QTimer()
+		self.timer.setInterval(1000)
+		self.timer.timeout.connect(self.recurring_timer)
+		self.timer.start()
+
+		self.mqtt_ok = True
 
 
 	def display_image(self,image, container):
 		
 		image = imutils.resize(image, width = int(image.shape[1] * 0.8))
 		height, width = image.shape	
+
+		# O problema estava nessa caralha de linha
 		image = QtGui.QImage(image.tobytes(), width, height,(width),QtGui.QImage.Format_Indexed8)
 		
 		pixmap = QPixmap.fromImage(image)
 		
-		scene = QtGui.QGraphicsScene() 
-		scene.addPixmap(pixmap)
+		
 
 		
 		if container == 0:
+			scene = QtGui.QGraphicsScene(self.foto_inicial) 
+			scene.addPixmap(pixmap)
 			self.foto_inicial.setScene(scene)
+			self.foto_inicial.show()
+		
 		elif container == 1:
+			scene = QtGui.QGraphicsScene(self.foto_atual) 
+			scene.addPixmap(pixmap)
 			self.foto_atual.setScene(scene)
+			self.foto_atual.show()
+
 		elif container == 2:
+			scene = QtGui.QGraphicsScene(self.crop_borr) 
+			scene.addPixmap(pixmap)
 			self.crop_borr.setScene(scene)
+			self.crop_borr.show()
+		
 		elif container == 3:
+			scene = QtGui.QGraphicsScene(self.rachaduras) 
+			scene.addPixmap(pixmap)
 			self.rachaduras.setScene(scene)
-		#scene.update()
-
-		#self.label_3.show()
-		'''
-		global inicio_x, inicio_y, fim_x, fim_y
-		r = QRect.rect(inicio_x, inicio_y, fim_x, fim_y);
-	
-		height, width = image.shape	
-		byteValue =  1 * width
-		img_inicial = cv2.cvtColor(img_inicial, cv2.COLOR_BGR2GRAY)
-		scene = QtGui.QGraphicsScene() 
-		image = QtGui.QImage(image, height, width,  QtGui.QImage.Format_RGB888)
-		scene.addPixmap(QtGui.QPixmap.fromImage(image) )
-
-		self.foto_inicial.setScene(scene)
-		#self.foto_inicial.show()
-		if container == 0:
-			pass
+			self.rachaduras.show()
 		scene.update()
-		#return
-		'''
 
 	def update_percent(self,percentual):
 		self.progressBar.setProperty("value", percentual)
-		
+	
+	def recurring_timer(self):
+		shot()
+
+	def mqtt_fail(self):
+		self.mqtt_ok = False
+		self.label_3.setText("MQTT Desconectado")
+
+
+def shot():
+	global cam, imagem_exemplo
+
+	if(imagem_exemplo is None):
+		for image in cam.grab_images(1):
+			proc_image(image)
+	else:
+		proc_image(imagem_exemplo)
+
+def mqtt_publish(percentual):
+	global window
+	if window.mqtt_ok:
+		mqttc.publish('esp8266-out/id_nods/TQ7/Camera-CBM/Roda-Guia/pdr', \
+						payload='{ \"data\":'+str(time.time())+', \"valor\":'+ str(percentual) +'}', \
+						qos=0, \
+						retain=False
+			)
+
+
 
 def getParams():
 	fh = open("parameters.txt", "r") 
@@ -203,6 +233,8 @@ def proc_image(image):
 
 		percentual = brancos*100.0/ (float(total)*0.75)
 		print( str(percentual)+'%')
+		
+		mqtt_publish(percentual)
 		window.update_percent(int(percentual))
 	return output
 
@@ -215,75 +247,78 @@ def init_matrix():
 	return d
 
 
-# Inicializacao da interface grafica
-try:
-	app = QtGui.QApplication(sys.argv)
-	window = MyWindow()
-	window.show()
-except:
-	print("Falha ao carregar interface grafica")
-
-# Carrega parametros e arquivos auxiliares
-#try:
-#Parametros
-(inicio_x, inicio_y, fim_x, fim_y, ci_min,ci_max,ci_sens,ce_min,ce_max,ce_sens) = getParams()
-
-# matriz auxiliar
-d = init_matrix()
-
-# Template
-template = cv2.imread('img/template_roda.jpg')
-template = cv2.cvtColor(template, cv2.COLOR_BGR2GRAY)
-(tH, tW) = template.shape[:2]
-
-# Imagem inicial
-img_inicial = cv2.imread('img/roda-real.bmp')
-img_inicial = img_inicial[inicio_y:fim_y,inicio_x:fim_x]
-img_inicial = cv2.cvtColor(img_inicial, cv2.COLOR_BGR2GRAY)
-print(img_inicial.shape)
-window.display_image(img_inicial,0)
-
-#except:
-#	print('Falha ao carregar template')
-
-
-# Inicializacao da camera
-try:
-	imagem_exemplo = None
-	print('Build against pylon library version:', pypylon.pylon_version.version)
-	available_cameras = pypylon.factory.find_devices()
-	print('Available cameras are', available_cameras)
-	cam = pypylon.factory.create_device(available_cameras[-1])
-	print('Camera info of camera object:', cam.device_info)
-	cam.open()
-except:
-	print("Falha na comunicacao com a camera\nCarregando imagem de exemplo...")
-	imagem_exemplo = cv2.imread('img/roda-real.bmp')
-	imagem_exemplo = cv2.cvtColor(imagem_exemplo, cv2.COLOR_BGR2GRAY)
-
-
-# Loop principal
-if(imagem_exemplo is None):
-	while True:
-		for image in cam.grab_images(1):
-			result = proc_image(image)
-			try:
-				cv2.imshow('frame',result)
-				if cv2.waitKey(1) & 0xFF == ord('q'):
-					break
-			except:
-				cv2.destroyAllWindows()
-				break
-else:
-
-	result = proc_image(imagem_exemplo)
+if __name__ == "__main__":
+	
+	# Inicializacao da interface grafica
 	try:
-		#cv2.imshow('frame',result)
-		#cv2.waitKey(0)
-		cv2.destroyAllWindows()
+		app = QtGui.QApplication(sys.argv)
+		window = MyWindow()
+		window.show()
+		print("Interface grafica carregada com sucesso")
 	except:
-		cv2.destroyAllWindows()
+		print("Falha ao carregar interface grafica")
+	
+
+	# Carrega parametros e arquivos auxiliares
+	try:
+		#Parametros
+		(inicio_x, inicio_y, fim_x, fim_y, ci_min,ci_max,ci_sens,ce_min,ce_max,ce_sens) = getParams()
+
+		# matriz auxiliar
+		d = init_matrix()
+
+		# Template
+		template = cv2.imread('img/template_roda.jpg')
+		template = cv2.cvtColor(template, cv2.COLOR_BGR2GRAY)
+		(tH, tW) = template.shape[:2]
+
+		# Imagem inicial
+		img_inicial = cv2.imread('img/roda-real.bmp')
+		img_inicial = img_inicial[inicio_y:fim_y,inicio_x:fim_x]
+		img_inicial = cv2.cvtColor(img_inicial, cv2.COLOR_BGR2GRAY)
+
+		window.display_image(img_inicial,0)
+		print("Parametros carregados com sucesso")
+	except:
+		print('Falha ao carregar parametros')
+
+	
+	try:
+		mqttc = mqtt.Client()
+		#client.on_connect = on_connect
+		#client.on_message = on_message
+		mqttc.connect("54.167.157.103", 1883, 60)
+		mqttc.loop_start()
+		print('Conexao MQTT bem sucedida')
+
+	except:
+		window.mqtt_fail()
+		print('Falha ao estabelecer conexao MQTT com o server')
 
 
-sys.exit(app.exec_())
-#window.display_image(img_inicial,0)
+	# Inicializacao da camera
+	try:
+		imagem_exemplo = None
+		print('Pylon version:', pypylon.pylon_version.version)
+		available_cameras = pypylon.factory.find_devices()
+		print('Cameras encontradas: ', available_cameras)
+		cam = pypylon.factory.create_device(available_cameras[-1])
+		print('Camera selecionada: ', cam.device_info)
+		cam.open()
+		print('Comunicacao com a camera realizada com sucesso')
+	except:
+		print("Falha na comunicacao com a camera\nCarregando imagem de exemplo...")
+		imagem_exemplo = cv2.imread('img/roda-real.bmp')
+		imagem_exemplo = cv2.cvtColor(imagem_exemplo, cv2.COLOR_BGR2GRAY)
+
+
+
+
+	# Loop principal
+	
+	sys.exit( app.exec_() )
+
+
+
+# TO-DO: Fazer botao que chama rotina de reparametrizacao de raios e sensibilidades da deteccao
+# TO-DO: Rotina de reconexao MQTT em caso de iniciar desconectado ou cair enquanto esta ligado

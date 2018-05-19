@@ -228,7 +228,7 @@
       <rect>
        <x>10</x>
        <y>30</y>
-       <width>131</width>
+       <width>161</width>
        <height>17</height>
       </rect>
      </property>
@@ -237,20 +237,6 @@
      </property>
     </widget>
    </widget>
-   <zorder>label</zorder>
-   <zorder>label_2</zorder>
-   <zorder>line</zorder>
-   <zorder>crop_borr</zorder>
-   <zorder>rachaduras</zorder>
-   <zorder>label_4</zorder>
-   <zorder>label_5</zorder>
-   <zorder>groupBox</zorder>
-   <zorder>label_7</zorder>
-   <zorder>foto_inicial</zorder>
-   <zorder>progressBar</zorder>
-   <zorder>label_8</zorder>
-   <zorder>foto_atual</zorder>
-   <zorder>groupBox_2</zorder>
   </widget>
   <widget class="QMenuBar" name="menubar">
    <property name="geometry">
