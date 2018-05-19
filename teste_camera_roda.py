@@ -1,9 +1,50 @@
 import pypylon
 import imutils
 import time
-import numpy as np
+import sys
 import cv2
+import numpy as np
+import interface
+from PyQt4 import QtGui, uic
 
+from PyQt4.QtCore import *
+from PyQt4.QtGui import *
+
+# Como gerar o .py de um .ui
+#pyuic4 CBM-RodaGuia/mainwindow.ui > interface.py
+
+class MyWindow(QtGui.QMainWindow, interface.Ui_MainWindow):
+
+	def __init__(self):
+		#Esseinicializa a classe mae
+		super(MyWindow, self).__init__()
+		
+		self.setupUi(self)
+		#self.show()
+
+
+	def display_image(self,image, container):
+		global inicio_x, inicio_y, fim_x, fim_y
+		r = QRect.rect(inicio_x, inicio_y, fim_x, fim_y);
+	
+		height, width = image.shape	
+		byteValue =  1 * width
+		#img_inicial = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+		scene = QtGui.QGraphicsScene() 
+		image = QtGui.QImage(image, height, width,  QtGui.QImage.Format_RGB888)
+		scene.addPixmap(QtGui.QPixmap.fromImage(image).copy(inicio_x, inicio_y, fim_x, fim_y) )
+
+		self.foto_inicial.setScene(scene)
+		#self.foto_inicial.show()
+		if container == 0:
+			pass
+		scene.update()
+		return
+
+
+	def update_percent(self,percentual):
+		self.progressBar.setProperty("value", percentual)
+		
 
 def getParams():
 	fh = open("parameters.txt", "r") 
@@ -17,7 +58,6 @@ def getParams():
 		return (inicio_x, inicio_y, fim_x, fim_y, ci_min,ci_max,ci_sens,ce_min,ce_max,ce_sens)
 	else:
 		return None
-
 
 def template_match(img,template):
 	found = None
@@ -43,8 +83,6 @@ def template_match(img,template):
 	
 	return found
 
-
-
 def plot_circles(circles, output):
 	if circles is not None:
 		#print(circles[0])
@@ -57,65 +95,57 @@ def plot_circles(circles, output):
 			cv2.circle(output, (x, y), r, (0, 255, 0), 4)
 			cv2.rectangle(output, (x - 5, y - 5), (x + 5, y + 5), (0, 128, 255), -1)
 
-def log_transform(img):
-	# resizing using aspect ratio intact and finding the circle
-	# reduce size retain aspect ratio intact
-	# invert BGR 2 RGB
-	#  convert in to float and get log trasform for contrast streching
-	g = 0.2 * (np.log(1 + np.float32(img)))
-	# change into uint8
-	cvuint = cv2.convertScaleAbs(g)
+def log_transform(img,param):
+	img = img.astype(np.float) # Cast to float
+	c = (img.max()) / (img.max()**(param))
+	for i in range(0,img.shape[0]-1):
+		for j in range(0,img.shape[1]-1):
+			img[i,j] = np.int(c*img[i,j]**(param))
+
+	# Cast back to uint8 for display
+	img = img.astype(np.uint8)
+	return img
 
 def proc_image(image):
 
-	global inicio_x, inicio_y, fim_x, fim_y, ci_min,ci_max,ci_sens,ce_min,ce_max,ce_sens, templatem, tH, tW
+	global d,inicio_x, inicio_y, fim_x, fim_y, ci_min,ci_max,ci_sens,ce_min,ce_max,ce_sens, templatem, tH, tW , window
 
 	#image = imutils.resize(image, width = int(image.shape[1] * 0.8))
 	image = image[inicio_y:fim_y,inicio_x:fim_x]
-	## To-DO template matching da roda
-	# Retorna -1 se nao for roda
+	
 	a = template_match(image,template)
-	#print(a)
 	if(a is None):
 		pass
 	else:
 		(maxVal, maxLoc, r) = a
-	(startX, startY) = (int(maxLoc[0] * r), int(maxLoc[1] * r))
-	(endX, endY) = (int((maxLoc[0] + tW) * r), int((maxLoc[1] + tH) * r))
-	
+
+	image = log_transform(image,0.5)
 	output = image.copy()
-	#output = cv2.equalizeHist(image)
+	
 	# define o limiar de deteccao da roda
 	print(maxVal)
 	if( maxVal < 51553404*2 ):
+		print("Nao roda")
 		return output
-	#cv2.imwrite('img/rodas/Roda '+time.ctime()+'.jpg',image)
-	print("Roda")
+	else:
+		#cv2.imwrite('img/rodas/Roda '+time.ctime()+'.jpg',image)
+		print("Roda")
 
-
+	#output = cv2.equalizeHist(image)
 	#image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-	image = log_transform(image)
+	print(image)
 	image_c = cv2.GaussianBlur(image,(3,3),0)
-	
-
-	#image = edged
-
 
 	# detecta o circulo externo
 	circles1 = cv2.HoughCircles(image_c, cv2.HOUGH_GRADIENT, ci_sens , 700, maxRadius = ci_max, minRadius = ci_min)
-	#circles1 = None
-
+	
 	# detecta a interface entre a borracha e o ferro
 	circles2 = cv2.HoughCircles(image_c, cv2.HOUGH_GRADIENT, ce_sens , 700, maxRadius = ce_max, minRadius = ce_min)
-	#circles2 = None
-
+	
 	plot_circles(circles1,output)
 	plot_circles(circles2,output)
 
-	#cv2.imshow("Circulos",  output )
-	#cv2.waitKey(0)
-	#cv2.destroyAllWindows()
-
+	
 
 	# Isola a borracha na foto
 	# poderia ser feito uma mascara de tamanho fixo, mas fiz essa baseada no tamanho
@@ -126,70 +156,91 @@ def proc_image(image):
 
 		borracha_ferro = circles1[0,0]
 		externo = circles2[0,0]
-		print(externo)
-		print(borracha_ferro)
-		rachaduras = image.copy()
-		#dist = np.sqrt( (x - externo[0])**2 + (y - externo[1])**2 )
-		for x in range( image.shape[1] ):
-			for y in range( image.shape[0] ):
+		#print(externo)
+		#print(borracha_ferro)
 
-				dist = np.sqrt( (x - externo[0]) ** 2 + (y - externo[1]) ** 2 )
-				if not(( dist >= borracha_ferro[2] ) & ( dist <= externo[2] )):
-					rachaduras[y,x] = 0
-				else:
-					total += 1
+		rachaduras = image.copy()
+		dist = np.sqrt( ( d[:,:,1] - externo[0]) ** 2 + ( d[:,:,0] - externo[1]) ** 2 )
+		zera = ( dist <= borracha_ferro[2] ) | ( dist >= externo[2] )
+
+		rachaduras[zera] = 0
 
 		cv2.imshow("Crop",  rachaduras )
 		cv2.waitKey(1)
-		#cv2.destroyAllWindows()
-
+		
 		# TO DO: Fazer canny line detection na parte da borracha.
 		edged = cv2.Canny(rachaduras, 25, 30)
 
 		cv2.imshow("Linhas",  edged )
 		cv2.waitKey(1)
-		#cv2.destroyAllWindows()
-
-
+		
 		brancos = (np.sum(edged)/255).astype(float)
-		#total = edged.shape[0] * edged.shape[1]
+		total = ( image.shape[0] * image.shape[1] ) - np.sum(zera)
 
-		percentual = brancos/ (float(total)*0.75)
-		print( str(percentual*100.0)+'%')
+		percentual = brancos*100.0/ (float(total)*0.75)
+		print( str(percentual)+'%')
+		window.update_percent(int(percentual))
 	return output
 
+def init_matrix():
+	d = np.zeros( (fim_y - inicio_y,  fim_x - inicio_x  ,2) )
+	for x in range( fim_y - inicio_y ):
+		for y in range( fim_x - inicio_x ):
+			d[x,y,:] = [x,y]
 
-(inicio_x, inicio_y, fim_x, fim_y, ci_min,ci_max,ci_sens,ce_min,ce_max,ce_sens) = getParams()
-de = None
+	return d
 
+
+# Inicializacao da interface grafica
 try:
+	app = QtGui.QApplication(sys.argv)
+	window = MyWindow()
+	window.show()
+except:
+	print("Falha ao carregar interface grafica")
+
+# Carrega parametros e arquivos auxiliares
+try:
+	#Parametros
+	(inicio_x, inicio_y, fim_x, fim_y, ci_min,ci_max,ci_sens,ce_min,ce_max,ce_sens) = getParams()
+	
+	# matriz auxiliar
+	d = init_matrix()
+
+	# Template
+	template = cv2.imread('img/template_roda.jpg')
+	template = cv2.cvtColor(template, cv2.COLOR_BGR2GRAY)
+	(tH, tW) = template.shape[:2]
+
+	# Imagem inicial
+	img_inicial = cv2.imread('img/roda-real.bmp')
+	#img_inicial = img_inicial[inicio_y:fim_y,inicio_x:fim_x]
+	#img_inicial = cv2.cvtColor(img_inicial, cv2.COLOR_BGR2GRAY)
+	window.display_image(img_inicial,0)
+
+except:
+	print('Falha ao carregar template')
+
+
+# Inicializacao da camera
+try:
+	imagem_exemplo = None
 	print('Build against pylon library version:', pypylon.pylon_version.version)
 	available_cameras = pypylon.factory.find_devices()
 	print('Available cameras are', available_cameras)
 	cam = pypylon.factory.create_device(available_cameras[-1])
 	print('Camera info of camera object:', cam.device_info)
 	cam.open()
-	for img in cam.grab_images(1):
-		print("Imagem capturada")
-		rachaduras = img.copy()
-		for x in range( img.shape[1] ):
-			for y in range( img.shape[0] ):
-				rachaduras[y,x] = (y,x)
-		
 except:
-	print("Falha na comunicacao com a camera")
-	#exit(1)
-	de = cv2.imread('img/roda-real.bmp')
-
-template = cv2.imread('img/template_roda.jpg')
-template = cv2.cvtColor(template, cv2.COLOR_BGR2GRAY)
-(tH, tW) = template.shape[:2]
+	print("Falha na comunicacao com a camera\nCarregando imagem de exemplo...")
+	imagem_exemplo = cv2.imread('img/roda-real.bmp')
+	imagem_exemplo = cv2.cvtColor(imagem_exemplo, cv2.COLOR_BGR2GRAY)
 
 
-while True:
-	if(de is None):
+# Loop principal
+if(imagem_exemplo is None):
+	while True:
 		for image in cam.grab_images(1):
-			#print(image.shape)
 			result = proc_image(image)
 			try:
 				cv2.imshow('frame',result)
@@ -198,7 +249,16 @@ while True:
 			except:
 				cv2.destroyAllWindows()
 				break
-	else:
-		print("Deu")
+else:
 
-cv2.destroyAllWindows()
+	result = proc_image(imagem_exemplo)
+	try:
+		cv2.imshow('frame',result)
+		cv2.waitKey(0)
+		cv2.destroyAllWindows()
+	except:
+		cv2.destroyAllWindows()
+
+
+sys.exit(app.exec_())
+window.display_image(img_inicial,0)
