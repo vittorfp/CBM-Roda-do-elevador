@@ -212,12 +212,13 @@ def proc_image(image):
 	circles2 = cv2.HoughCircles(image_c, cv2.HOUGH_GRADIENT, ce_sens , 700, maxRadius = ce_max, minRadius = ce_min)
 	#image_c.clear()
 	del image_c
-
 	#plot_circles(circles1,output)
 	#plot_circles(circles2,output)
 	#output.clear()
 	#del output
 
+	image = cv2.bilateralFilter(image, 4 , 50, 50, cv2.BORDER_DEFAULT);
+	
 	total = 0
 	if (circles1 is not None) and (circles2 is not None):
 
@@ -229,8 +230,10 @@ def proc_image(image):
 		rachaduras[zera] = 0
 		window.display_image(rachaduras,2)
 
-
-		edged = cv2.Canny(rachaduras, 25, 30)
+		edged = cv2.Canny(rachaduras, 35, 40)
+		kernel = cv2.getStructuringElement(cv2.MORPH_RECT,(3,3))
+		edged = cv2.morphologyEx(edged, cv2.MORPH_CLOSE, kernel)
+		
 		window.display_image(edged,3)
 		
 		brancos = (np.sum(edged)/255).astype(float)

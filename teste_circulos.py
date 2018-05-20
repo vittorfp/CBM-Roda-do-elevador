@@ -3,6 +3,14 @@ import argparse
 import imutils
 import cv2
 
+def init_matrix(img):
+	d = np.zeros( (img.shape[0] , img.shape[1], 2) )
+	for x in range( img.shape[1] ):
+		for y in range( img.shape[0] ):
+			d[x,y,:] = [x,y]
+
+	return d
+
 ap = argparse.ArgumentParser()
 ap.add_argument("-s", "--save", help = "Image to save")
 args = vars( ap.parse_args() )
@@ -35,7 +43,7 @@ if circles is not None:
 
 	# convert the (x, y) coordinates and radius of the circles to integers
 	circles = np.round(circles[0, :]).astype("int")
- 	
+	
 	# loop over the (x, y) coordinates and radius of the circles
 	for (x, y, r) in circles:
 		cv2.circle(output, (x, y), r, (0, 255, 0), 4)
@@ -46,7 +54,7 @@ if circles1 is not None:
 
 	# convert the (x, y) coordinates and radius of the circles to integers
 	circles1 = np.round(circles1[0, :]).astype("int")
- 	
+	
 	# loop over the (x, y) coordinates and radius of the circles
 	for (x, y, r) in circles1:
 		cv2.circle(output, (x, y), r, (0, 255, 0), 4)
@@ -57,7 +65,7 @@ if circles2 is not None:
 
 	# convert the (x, y) coordinates and radius of the circles to integers
 	circles2 = np.round(circles2[0, :]).astype("int")
- 	
+	
 	# loop over the (x, y) coordinates and radius of the circles
 	for (x, y, r) in circles2:
 		cv2.circle(output, (x, y), r, (0, 255, 0), 4)
@@ -76,6 +84,14 @@ cv2.waitKey(0)
 
 externo = circles1[0]
 borracha_ferro = circles[0]
+
+#d = init_matrix(output)
+#dist = np.sqrt( ( d[:,:,1] - externo[0]) ** 2 + ( d[:,:,0] - externo[1]) ** 2 )
+#zera = ( dist <= borracha_ferro[2] ) | ( dist >= externo[2] )
+#output[zera] = 0
+
+
+'''
 soma = 0
 rachaduras = image.copy()
 for x in range( image.shape[1] ):
@@ -89,12 +105,16 @@ for x in range( image.shape[1] ):
 
 
 print(soma)
+
 cv2.imshow("output",  rachaduras )
 cv2.waitKey(0)
-
-cv2.imwrite('img/borracha1.jpg', rachaduras )
+'''
+#cv2.imwrite('img/borracha1.jpg', rachaduras )
 
 # TO DO: Fazer canny line detection na parte da borracha.
-edged = cv2.Canny(rachaduras, 30, 40)
+edged = cv2.Canny(output, 30, 40)
+kernel = cv2.getStructuringElement(cv2.MORPH_CROSS,(3,3))
+edged = cv2.morphologyEx(edged, cv2.MORPH_CLOSE, kernel)
+		
 cv2.imshow("output",  edged )
 cv2.waitKey(0)
