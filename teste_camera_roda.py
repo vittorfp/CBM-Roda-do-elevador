@@ -1,5 +1,6 @@
 import pypylon
 import imutils
+import threading
 import time
 import sys
 import cv2
@@ -7,9 +8,10 @@ import numpy as np
 import paho.mqtt.client as mqtt
 import interface
 
-from PyQt4 import QtGui, uic
-from PyQt4.QtCore import *
-from PyQt4.QtGui import *
+
+from PyQt4 import QtGui, uic, QtCore
+#from PyQt4.QtCore import *
+#from PyQt4.QtGui import *
 
 # Como gerar o .py de um .ui
 #pyuic4 CBM-RodaGuia/mainwindow.ui > interface.py
@@ -21,55 +23,70 @@ class MyWindow(QtGui.QMainWindow, interface.Ui_MainWindow):
 		super(MyWindow, self).__init__()
 		
 		self.setupUi(self)
-		#self.show()
-		self.timer = QTimer()
-		self.timer.setInterval(1000)
-		self.timer.timeout.connect(self.recurring_timer)
-		self.timer.start()
 
+		#self.show()	
+		self.timer = QtCore.QTimer()
+		#self.timer.setInterval(3000)
+		self.timer.timeout.connect(shot)
+		self.timer.start(1000)
+		
 		self.mqtt_ok = True
 
+		self.scene_init = QtGui.QGraphicsScene(self.foto_inicial) 
+		self.scene_atual = QtGui.QGraphicsScene(self.foto_atual) 
+		self.scene_crop = QtGui.QGraphicsScene(self.crop_borr)
+		self.scene_rach = QtGui.QGraphicsScene(self.rachaduras) 
+			
 
 	def display_image(self,image, container):
+		#return 0
 		
 		image = imutils.resize(image, width = int(image.shape[1] * 0.8))
 		height, width = image.shape	
 
 		# O problema estava nessa caralha de linha
-		image = QtGui.QImage(image.tobytes(), width, height,(width),QtGui.QImage.Format_Indexed8)
-		
-		pixmap = QPixmap.fromImage(image)
-		
-		
+		img = QtGui.QImage(image.tobytes(), width, height,(width),QtGui.QImage.Format_Indexed8)
+		pixmap = QtGui.QPixmap.fromImage(img)
+		img = QtGui.QImage()
 
-		
+		#img.clear()
+		del img
 		if container == 0:
-			scene = QtGui.QGraphicsScene(self.foto_inicial) 
-			scene.addPixmap(pixmap)
-			self.foto_inicial.setScene(scene)
+			self.scene_init.clear()
+			self.scene_init.addPixmap(pixmap)
+			self.foto_inicial.setScene(self.scene_init)
 			self.foto_inicial.show()
-		
+			self.scene_init.update()
+
 		elif container == 1:
-			scene = QtGui.QGraphicsScene(self.foto_atual) 
-			scene.addPixmap(pixmap)
-			self.foto_atual.setScene(scene)
+			self.scene_atual.clear()
+			self.scene_atual.addPixmap(pixmap)
+			self.foto_atual.setScene(self.scene_atual)
 			self.foto_atual.show()
+			self.scene_atual.update()
 
 		elif container == 2:
-			scene = QtGui.QGraphicsScene(self.crop_borr) 
-			scene.addPixmap(pixmap)
-			self.crop_borr.setScene(scene)
+			self.scene_crop.clear()
+			self.scene_crop.addPixmap(pixmap)
+			self.crop_borr.setScene(self.scene_crop)
 			self.crop_borr.show()
-		
-		elif container == 3:
-			scene = QtGui.QGraphicsScene(self.rachaduras) 
-			scene.addPixmap(pixmap)
-			self.rachaduras.setScene(scene)
-			self.rachaduras.show()
-		scene.update()
+			self.scene_crop.update()
 
+		elif container == 3:
+			self.scene_rach.clear()
+			self.scene_rach.addPixmap(pixmap)
+			self.rachaduras.setScene(self.scene_rach)
+			self.rachaduras.show()
+			self.scene_rach.update()
+		
+		pixmap =  QtGui.QPixmap()
+		#pixmap.clear()
+		del pixmap
+		return 
+		
 	def update_percent(self,percentual):
 		self.progressBar.setProperty("value", percentual)
+		return
 	
 	def recurring_timer(self):
 		shot()
@@ -81,18 +98,19 @@ class MyWindow(QtGui.QMainWindow, interface.Ui_MainWindow):
 
 def shot():
 	global cam, imagem_exemplo
-
 	if(imagem_exemplo is None):
 		for image in cam.grab_images(1):
 			proc_image(image)
+			break
 	else:
 		proc_image(imagem_exemplo)
+		return
 
 def mqtt_publish(percentual):
 	global window
 	if window.mqtt_ok:
 		mqttc.publish('esp8266-out/id_nods/TQ7/Camera-CBM/Roda-Guia/pdr', \
-						payload='{ \"data\":'+str(time.time())+', \"valor\":'+ str(percentual) +'}', \
+						payload='{ \"data\":'+str(time.time() - 10800)+', \"valor\":'+ str(percentual) +'}', \
 						qos=0, \
 						retain=False
 			)
@@ -148,22 +166,25 @@ def plot_circles(circles, output):
 			cv2.circle(output, (x, y), r, (0, 255, 0), 4)
 			cv2.rectangle(output, (x - 5, y - 5), (x + 5, y + 5), (0, 128, 255), -1)
 
+#@profile
 def log_transform(img,param):
 	img = img.astype(np.float) # Cast to float
 	c = (img.max()) / (img.max()**(param))
-	for i in range(0,img.shape[0]-1):
-		for j in range(0,img.shape[1]-1):
-			img[i,j] = np.int(c*img[i,j]**(param))
+	img = (c*img**(param)).astype(np.uint8)
+	#for i in range(0,img.shape[0]-1):
+	#	for j in range(0,img.shape[1]-1):
+	#		img[i,j] = np.int(c*img[i,j]**(param))
 
 	# Cast back to uint8 for display
-	img = img.astype(np.uint8)
+	#img = img.astype(np.uint8)
+	del c
 	return img
 
 def proc_image(image):
 
 	global d,inicio_x, inicio_y, fim_x, fim_y, ci_min,ci_max,ci_sens,ce_min,ce_max,ce_sens, templatem, tH, tW , window
 
-	#imagSe = imutils.resize(image, width = int(image.shape[1] * 0.8))
+	#image = imutils.resize(image, width = int(image.shape[1] * 0.8))
 	image = image[inicio_y:fim_y,inicio_x:fim_x]
 	
 	a = template_match(image,template)
@@ -171,72 +192,65 @@ def proc_image(image):
 		pass
 	else:
 		(maxVal, maxLoc, r) = a
-
+	
 	window.display_image(image,1)
 	image = log_transform(image,0.5)
-	output = image.copy()
+	#output = image.copy()
+	
 	# define o limiar de deteccao da roda
 	print(maxVal)
-	if( maxVal < 51553404*2 ):
-		print("Nao roda")
-		return output
+	if ( maxVal < 51553404*2 ) | (a is None):
+		print("Nao eh roda")
+		#return output
+		return
 	else:
-		#cv2.imwrite('img/rodas/Roda '+time.ctime()+'.jpg',image)
 		print("Roda")
 
-	#output = cv2.equalizeHist(image)
-	#image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-	#print(image)
 	image_c = cv2.GaussianBlur(image,(3,3),0)
 
-	# detecta o circulo externo
 	circles1 = cv2.HoughCircles(image_c, cv2.HOUGH_GRADIENT, ci_sens , 700, maxRadius = ci_max, minRadius = ci_min)
-	
-	# detecta a interface entre a borracha e o ferro
 	circles2 = cv2.HoughCircles(image_c, cv2.HOUGH_GRADIENT, ce_sens , 700, maxRadius = ce_max, minRadius = ce_min)
-	
-	plot_circles(circles1,output)
-	plot_circles(circles2,output)
+	#image_c.clear()
+	del image_c
 
-	# Isola a borracha na foto
-	# poderia ser feito uma mascara de tamanho fixo, mas fiz essa baseada no tamanho
-	# do circulo detectado pois estou fazendo testes em imagens de tamanhos diferentes
+	#plot_circles(circles1,output)
+	#plot_circles(circles2,output)
+	#output.clear()
+	#del output
+
 	total = 0
-
 	if (circles1 is not None) and (circles2 is not None):
 
 		borracha_ferro = circles1[0,0]
 		externo = circles2[0,0]
-		#print(externo)
-		#print(borracha_ferro)
-
 		rachaduras = image.copy()
 		dist = np.sqrt( ( d[:,:,1] - externo[0]) ** 2 + ( d[:,:,0] - externo[1]) ** 2 )
 		zera = ( dist <= borracha_ferro[2] ) | ( dist >= externo[2] )
-
 		rachaduras[zera] = 0
-
-		#cv2.imshow("Crop",  rachaduras )
-		#cv2.waitKey(1)
-		#window.display_image(rachaduras,0)
 		window.display_image(rachaduras,2)
 
-		# TO DO: Fazer canny line detection na parte da borracha.
-		edged = cv2.Canny(rachaduras, 25, 30)
 
-		#cv2.imshow("Linhas",  edged )
-		#cv2.waitKey(1)
+		edged = cv2.Canny(rachaduras, 25, 30)
 		window.display_image(edged,3)
 		
 		brancos = (np.sum(edged)/255).astype(float)
-		total = ( image.shape[0] * image.shape[1] ) - np.sum(zera)
+		
+		#edged.clear()
+		del edged
+		del rachaduras
 
+		total = ( image.shape[0] * image.shape[1] ) - np.sum(zera)
 		percentual = brancos*100.0/ (float(total)*0.75)
 		print( str(percentual)+'%')
 		
-		mqtt_publish(percentual)
+		del zera
+		del dist
+		del image
+		mqtt_publish(int(percentual))
 		window.update_percent(int(percentual))
-	return output
+	
+	return
+	#return output
 
 def init_matrix():
 	d = np.zeros( (fim_y - inicio_y,  fim_x - inicio_x  ,2) )
@@ -285,12 +299,9 @@ if __name__ == "__main__":
 	
 	try:
 		mqttc = mqtt.Client()
-		#client.on_connect = on_connect
-		#client.on_message = on_message
 		mqttc.connect("54.167.157.103", 1883, 60)
 		mqttc.loop_start()
 		print('Conexao MQTT bem sucedida')
-
 	except:
 		window.mqtt_fail()
 		print('Falha ao estabelecer conexao MQTT com o server')
@@ -306,19 +317,16 @@ if __name__ == "__main__":
 		print('Camera selecionada: ', cam.device_info)
 		cam.open()
 		print('Comunicacao com a camera realizada com sucesso')
-	except:
+	except: 	
 		print("Falha na comunicacao com a camera\nCarregando imagem de exemplo...")
 		imagem_exemplo = cv2.imread('img/roda-real.bmp')
 		imagem_exemplo = cv2.cvtColor(imagem_exemplo, cv2.COLOR_BGR2GRAY)
 
-
-
-
-	# Loop principal
-	
+	# Loop principal	
 	sys.exit( app.exec_() )
 
 
 
 # TO-DO: Fazer botao que chama rotina de reparametrizacao de raios e sensibilidades da deteccao
 # TO-DO: Rotina de reconexao MQTT em caso de iniciar desconectado ou cair enquanto esta ligado
+# TO-DO: Cropar a area da estrutura do elevador
