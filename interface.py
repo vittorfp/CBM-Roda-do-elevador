@@ -2,7 +2,7 @@
 
 # Form implementation generated from reading ui file 'CBM-RodaGuia/mainwindow.ui'
 #
-# Created by: PyQt4 UI code generator 4.11.4
+# Created by: PyQt4 UI code generator 4.12.1
 #
 # WARNING! All changes made in this file will be lost!
 
@@ -34,7 +34,7 @@ class Ui_MainWindow(object):
         self.centralwidget = QtGui.QWidget(MainWindow)
         self.centralwidget.setObjectName(_fromUtf8("centralwidget"))
         self.label = QtGui.QLabel(self.centralwidget)
-        self.label.setGeometry(QtCore.QRect(60, 0, 371, 61))
+        self.label.setGeometry(QtCore.QRect(60, 0, 731, 61))
         font = QtGui.QFont()
         font.setPointSize(36)
         font.setBold(True)
@@ -46,7 +46,7 @@ class Ui_MainWindow(object):
         self.label_2.setGeometry(QtCore.QRect(180, 60, 101, 17))
         self.label_2.setObjectName(_fromUtf8("label_2"))
         self.line = QtGui.QFrame(self.centralwidget)
-        self.line.setGeometry(QtCore.QRect(60, 50, 371, 20))
+        self.line.setGeometry(QtCore.QRect(60, 50, 471, 20))
         self.line.setFrameShape(QtGui.QFrame.HLine)
         self.line.setFrameShadow(QtGui.QFrame.Sunken)
         self.line.setObjectName(_fromUtf8("line"))
