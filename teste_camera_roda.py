@@ -1,17 +1,14 @@
 import pypylon
 import imutils
-import threading
 import time
 import sys
 import cv2
 import numpy as np
 import paho.mqtt.client as mqtt
-import interface
-
-
 from PyQt4 import QtGui, uic, QtCore
-#from PyQt4.QtCore import *
-#from PyQt4.QtGui import *
+
+
+import interface
 
 # Como gerar o .py de um .ui
 #pyuic4 CBM-RodaGuia/mainwindow.ui > interface.py
@@ -24,7 +21,6 @@ class MyWindow(QtGui.QMainWindow, interface.Ui_MainWindow):
 		
 		self.setupUi(self)
 
-		#self.show()	
 		self.timer = QtCore.QTimer()
 		#self.timer.setInterval(3000)
 		self.timer.timeout.connect(shot)
@@ -88,13 +84,9 @@ class MyWindow(QtGui.QMainWindow, interface.Ui_MainWindow):
 		self.progressBar.setProperty("value", percentual)
 		return
 	
-	def recurring_timer(self):
-		shot()
-
 	def mqtt_fail(self):
 		self.mqtt_ok = False
 		self.label_3.setText("MQTT Desconectado")
-
 
 def shot():
 	global cam, imagem_exemplo
@@ -115,8 +107,6 @@ def mqtt_publish(percentual):
 						retain=False
 			)
 
-
-
 def getParams():
 	fh = open("parameters.txt", "r") 
 	params = fh.readlines()
@@ -129,6 +119,16 @@ def getParams():
 		return (inicio_x, inicio_y, fim_x, fim_y, ci_min,ci_max,ci_sens,ce_min,ce_max,ce_sens)
 	else:
 		return None
+
+def adjust_gamma(image, gamma=1.0):
+	# build a lookup table mapping the pixel values [0, 255] to
+	# their adjusted gamma values
+	invGamma = 1.0 / gamma
+	table = np.array([((i / 255.0) ** invGamma) * 255
+		for i in np.arange(0, 256)]).astype("uint8")
+ 
+	# apply gamma correction using the lookup table
+	return cv2.LUT(image, table)
 
 def template_match(img,template):
 	found = None
@@ -166,7 +166,6 @@ def plot_circles(circles, output):
 			cv2.circle(output, (x, y), r, (0, 255, 0), 4)
 			cv2.rectangle(output, (x - 5, y - 5), (x + 5, y + 5), (0, 128, 255), -1)
 
-#@profile
 def log_transform(img,param):
 	img = img.astype(np.float) # Cast to float
 	c = (img.max()) / (img.max()**(param))
@@ -193,8 +192,9 @@ def proc_image(image):
 	else:
 		(maxVal, maxLoc, r) = a
 	
-	window.display_image(image,1)
 	image = log_transform(image,0.5)
+	image = adjust_gamma(image, gamma=0.9)
+	window.display_image(image,1)
 	#output = image.copy()
 	
 	# define o limiar de deteccao da roda
@@ -224,23 +224,31 @@ def proc_image(image):
 
 		borracha_ferro = circles1[0,0]
 		externo = circles2[0,0]
-		rachaduras = image.copy()
+		crop = image.copy()
+		
 		dist = np.sqrt( ( d[:,:,1] - externo[0]) ** 2 + ( d[:,:,0] - externo[1]) ** 2 )
-		zera = ( dist <= borracha_ferro[2] ) | ( dist >= externo[2] )
-		rachaduras[zera] = 0
-		window.display_image(rachaduras,2)
+		zera = ( dist < borracha_ferro[2] ) | ( dist > externo[2] )
+		
+		crop[zera] = 0
+		window.display_image(crop,2)
 
-		edged = cv2.Canny(rachaduras, 35, 40)
+		edged = cv2.Canny(crop, 35, 40)
 		kernel = cv2.getStructuringElement(cv2.MORPH_RECT,(3,3))
 		edged = cv2.morphologyEx(edged, cv2.MORPH_CLOSE, kernel)
-		
 		window.display_image(edged,3)
+		
+		
+		edged = cv2.Canny(image, 35, 40)
+		kernel = cv2.getStructuringElement(cv2.MORPH_RECT,(3,3))
+		edged = cv2.morphologyEx(edged, cv2.MORPH_CLOSE, kernel)
+		edged[zera] = 0
+		
 		
 		brancos = (np.sum(edged)/255).astype(float)
 		
 		#edged.clear()
 		del edged
-		del rachaduras
+		del crop
 
 		total = ( image.shape[0] * image.shape[1] ) - np.sum(zera)
 		percentual = brancos*100.0/ (float(total)*0.75)
