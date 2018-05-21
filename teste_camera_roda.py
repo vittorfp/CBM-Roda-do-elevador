@@ -301,8 +301,9 @@ if __name__ == "__main__":
 		img_inicial = cv2.imread('img/roda-real.bmp')
 		img_inicial = img_inicial[inicio_y:fim_y,inicio_x:fim_x]
 		img_inicial = cv2.cvtColor(img_inicial, cv2.COLOR_BGR2GRAY)
+		img_inicial = log_transform(img_inicial,0.5)
 		img_inicial = adjust_gamma(img_inicial, gamma=0.9)
-		
+
 		window.display_image(img_inicial,0)
 		print("Parametros carregados com sucesso")
 	except:
