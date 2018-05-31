@@ -101,10 +101,10 @@ def shot():
 def mqtt_publish(percentual):
 	global window
 	if window.mqtt_ok:
-		percentual = np.random.randn()*20
+		#percentual = np.random.randn()*20
 		mqttc.publish('esp8266-out/id_nods/TQ7/Camera-CBM/Roda-Guia/pdr', \
-						payload='{ \"data\":'+str(time.time() - 10800)+', \"valor\":[{ \"corrente\":'+ str(percentual) +',\"rachaduras\":4}] }', \
-						#payload='{ \"data\":'+str(time.time() - 10800)+', \"valor\":'+ str(percentual) +'}', \
+						#payload='{ \"data\":'+str(time.time() - 10800)+', \"valor\":[{ \"corrente\":'+ str(percentual) +',\"rachaduras\":4}] }', \
+						payload='{ \"data\":'+str(time.time() - 10800)+', \"valor\":'+ str(percentual) +'}', \
 						qos=0, \
 						retain=False
 			)
@@ -200,9 +200,10 @@ def proc_image(image):
 	#output = image.copy()
 	
 	# define o limiar de deteccao da roda
-	print(maxVal)
-	if ( maxVal < 51553404*2 ) | (a is None):
-		print("Nao eh roda")
+	#print(maxVal)
+	#if ( maxVal < 51553404*2 ) | (a is None):
+	if ( maxVal < 380000000 ) | (a is None):
+		print("Roda nao esta na frente da camera")
 		#return output
 		return
 	else:
@@ -295,7 +296,8 @@ if __name__ == "__main__":
 		d = init_matrix()
 
 		# Template
-		template = cv2.imread('img/template_roda.jpg')
+		#template = cv2.imread('img/template_roda.jpg')
+		template = cv2.imread('img/template_roda2.jpg')
 		template = cv2.cvtColor(template, cv2.COLOR_BGR2GRAY)
 		(tH, tW) = template.shape[:2]
 
