@@ -112,8 +112,7 @@ while(not ok):
 	if k == 27:
 		break
 
-	if(len(refPt) == 2):
-		print(refPt)
+	if(len(refPt) == 2):q
 		inicio = refPt[0]
 		fim = refPt[1]
 		img = img[inicio[1]:fim[1],inicio[0]:fim[0]]

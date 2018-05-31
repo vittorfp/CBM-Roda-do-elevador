@@ -101,8 +101,10 @@ def shot():
 def mqtt_publish(percentual):
 	global window
 	if window.mqtt_ok:
+		percentual = np.random.randn()*20
 		mqttc.publish('esp8266-out/id_nods/TQ7/Camera-CBM/Roda-Guia/pdr', \
-						payload='{ \"data\":'+str(time.time() - 10800)+', \"valor\":'+ str(percentual) +'}', \
+						payload='{ \"data\":'+str(time.time() - 10800)+', \"valor\":[{ \"corrente\":'+ str(percentual) +',\"rachaduras\":4}] }', \
+						#payload='{ \"data\":'+str(time.time() - 10800)+', \"valor\":'+ str(percentual) +'}', \
 						qos=0, \
 						retain=False
 			)
@@ -312,7 +314,8 @@ if __name__ == "__main__":
 	
 	try:
 		mqttc = mqtt.Client()
-		mqttc.connect("54.167.157.103", 1883, 60)
+		#mqttc.connect("54.167.157.103", 1883, 60)
+		mqttc.connect("localhost", 1883, 60)
 		mqttc.loop_start()
 		print('Conexao MQTT bem sucedida')
 	except:

@@ -92,6 +92,7 @@ borracha_ferro = circles[0]
 
 
 '''
+payload='{ \"data\":'+str(time.time() - 10800)+', \"valor\":[{ \"corrente\":'+ str(percentual) +',\"rachaduras\":4}] }', \
 soma = 0
 rachaduras = image.copy()
 for x in range( image.shape[1] ):
