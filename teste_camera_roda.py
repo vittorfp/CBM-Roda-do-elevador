@@ -296,8 +296,8 @@ if __name__ == "__main__":
 		d = init_matrix()
 
 		# Template
-		#template = cv2.imread('img/template_roda.jpg')
-		template = cv2.imread('img/template_roda2.jpg')
+		template = cv2.imread('img/template_roda.jpg')
+		#template = cv2.imread('img/template_roda2.jpg')
 		template = cv2.cvtColor(template, cv2.COLOR_BGR2GRAY)
 		(tH, tW) = template.shape[:2]
 
@@ -307,7 +307,6 @@ if __name__ == "__main__":
 		img_inicial = cv2.cvtColor(img_inicial, cv2.COLOR_BGR2GRAY)
 		img_inicial = log_transform(img_inicial,0.5)
 		img_inicial = adjust_gamma(img_inicial, gamma=0.9)
-
 		window.display_image(img_inicial,0)
 		print("Parametros carregados com sucesso")
 	except:
@@ -325,9 +324,10 @@ if __name__ == "__main__":
 		print('Falha ao estabelecer conexao MQTT com o server')
 
 
+	imagem_exemplo = None
 	# Inicializacao da camera
 	try:
-		imagem_exemplo = None
+		
 		print('Pylon version:', pypylon.pylon_version.version)
 		available_cameras = pypylon.factory.find_devices()
 		print('Cameras encontradas: ', available_cameras)
@@ -339,6 +339,7 @@ if __name__ == "__main__":
 		print("Falha na comunicacao com a camera\nCarregando imagem de exemplo...")
 		imagem_exemplo = cv2.imread('img/roda-real.bmp')
 		imagem_exemplo = cv2.cvtColor(imagem_exemplo, cv2.COLOR_BGR2GRAY)
+		#cv2.imshow("Imga",imagem_exemplo)
 
 	# Loop principal	
 	sys.exit( app.exec_() )
